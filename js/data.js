@@ -33,6 +33,7 @@ async function fetchSheetData(sheetName) {
 
   // Parse Google Visualization table format into plain objects
   const headers = data.table.cols.map(col => col.label || col.id);
+  const colTypes = data.table.cols.map(col => col.type);
   return data.table.rows.map(row => {
     const obj = {};
     row.c.forEach((cell, i) => {
@@ -40,7 +41,17 @@ async function fetchSheetData(sheetName) {
       if (cell === null) {
         obj[headers[i]] = '';
       } else if (cell.v !== null && cell.v !== undefined) {
-        obj[headers[i]] = cell.v;
+        // Convert gviz Date(year,month,day) to YYYY-MM-DD string
+        if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+          const m = cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
+          if (m) {
+            obj[headers[i]] = `${m[1]}-${String(parseInt(m[2]) + 1).padStart(2, '0')}-${String(parseInt(m[3])).padStart(2, '0')}`;
+          } else {
+            obj[headers[i]] = cell.f || cell.v;
+          }
+        } else {
+          obj[headers[i]] = cell.v;
+        }
       } else {
         obj[headers[i]] = '';
       }

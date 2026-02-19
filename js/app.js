@@ -45,7 +45,7 @@ function updateLastRunInfo(lastRun) {
     el.textContent = 'Sin datos';
     return;
   }
-  const run = lastRun[0];
+  const run = lastRun[lastRun.length - 1];
   if (run.last_run_timestamp) {
     el.textContent = formatDateTime(run.last_run_timestamp);
   }
