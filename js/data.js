@@ -19,7 +19,7 @@ const CONFIG = {
 function fetchSheetData(sheetName) {
   return new Promise((resolve, reject) => {
     const cbName = '_gviz_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:${cbName}&sheet=${encodeURIComponent(sheetName)}`;
+    const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:${cbName}&sheet=${encodeURIComponent(sheetName)}&headers=1`;
 
     const script = document.createElement('script');
     const timeout = setTimeout(() => {

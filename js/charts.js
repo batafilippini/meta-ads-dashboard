@@ -182,6 +182,69 @@ function renderCampaignBarChart(campaignMetrics) {
   });
 }
 
+/**
+ * Render account spend comparison bar chart (for "all" view).
+ * @param {Array} accountMetrics - All account metrics
+ */
+function renderAccountSpendChart(accountMetrics) {
+  const canvas = document.getElementById('campaign-bar-chart');
+  if (!canvas) return;
+
+  if (campaignBarChart) campaignBarChart.destroy();
+
+  const latest = getLatestData(accountMetrics);
+  const sorted = [...latest].filter(r => r.spend > 0).sort((a, b) => b.spend - a.spend);
+
+  if (sorted.length === 0) {
+    canvas.parentElement.innerHTML = '<p class="empty-state">Sin datos de inversion</p>';
+    return;
+  }
+
+  const labels = sorted.map(r => r.account_name);
+  const colors = sorted.map((_, i) => CHART_COLORS.barGradient[i % CHART_COLORS.barGradient.length]);
+
+  campaignBarChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Inversion ($)',
+        data: sorted.map(r => r.spend.toFixed(2)),
+        backgroundColor: colors,
+        borderRadius: 6,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1f2937',
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: {
+            label: ctx => ` $${Number(ctx.raw).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: CHART_COLORS.gridLine },
+          ticks: { color: CHART_COLORS.gray, callback: v => '$' + v.toLocaleString('es-AR') }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#1f2937', font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
 // Helper
 function formatDateShort(dateStr) {
   if (!dateStr) return '';

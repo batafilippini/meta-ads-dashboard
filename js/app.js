@@ -12,7 +12,12 @@ async function init() {
     dashboardData = await loadDashboardData();
     populateAccountSelector(dashboardData.accounts);
     updateLastRunInfo(dashboardData.lastRun);
-    renderDashboard('all');
+
+    // Default to first active account (not useless aggregate)
+    const firstActive = dashboardData.accounts.find(a => String(a.active).toUpperCase() === 'TRUE');
+    const defaultAccount = firstActive ? firstActive.account_id : 'all';
+    document.getElementById('account-selector').value = defaultAccount;
+    renderDashboard(defaultAccount);
   } catch (err) {
     showError(err.message);
   } finally {
@@ -56,11 +61,70 @@ function updateLastRunInfo(lastRun) {
 function renderDashboard(accountId) {
   const am = filterByAccount(dashboardData.accountMetrics, accountId);
   const cm = filterByAccount(dashboardData.campaignMetrics, accountId);
+  const overviewSection = document.getElementById('account-overview');
+  const barTitle = document.getElementById('bar-chart-title');
+
+  if (accountId === 'all') {
+    // Show account overview table
+    renderAccountOverview(dashboardData.accountMetrics, dashboardData.accounts);
+    overviewSection.style.display = 'block';
+    // Bar chart: spend per account
+    barTitle.textContent = 'Inversion por Cuenta';
+    renderAccountSpendChart(dashboardData.accountMetrics);
+  } else {
+    overviewSection.style.display = 'none';
+    // Bar chart: top campaigns by spend
+    barTitle.textContent = 'Top 10 Campanas por Inversion';
+    renderCampaignBarChart(getLatestData(cm));
+  }
 
   renderKPIs(am);
   renderTrendChart(am);
   renderCampaignTable(cm);
-  renderCampaignBarChart(getLatestData(cm));
+}
+
+// --- Account Overview Table ---
+
+function renderAccountOverview(accountMetrics, accounts) {
+  const tbody = document.getElementById('overview-tbody');
+  const latest = getLatestData(accountMetrics);
+
+  const byAccount = {};
+  latest.forEach(row => { byAccount[row.account_id] = row; });
+
+  const activeAccounts = accounts.filter(a => String(a.active).toUpperCase() === 'TRUE');
+
+  tbody.innerHTML = activeAccounts
+    .sort((a, b) => ((byAccount[b.account_id] || {}).spend || 0) - ((byAccount[a.account_id] || {}).spend || 0))
+    .map(acc => {
+      const m = byAccount[acc.account_id] || {};
+      const spend = Number(m.spend) || 0;
+      const impressions = Number(m.impressions) || 0;
+      const clicks = Number(m.clicks) || 0;
+      const ctr = Number(m.ctr) || 0;
+      const conversions = Number(m.conversions) || 0;
+      const cpa = Number(m.cpa) || 0;
+      return `
+        <tr class="overview-row" data-account="${acc.account_id}">
+          <td class="cell-name">${escapeHtml(acc.account_name)}</td>
+          <td class="cell-number cell-bold">${fmtMoney(spend)}</td>
+          <td class="cell-number">${fmtNum(impressions)}</td>
+          <td class="cell-number">${fmtNum(clicks)}</td>
+          <td class="cell-number">${fmtPct(ctr)}</td>
+          <td class="cell-number cell-highlight">${fmtNum(conversions)}</td>
+          <td class="cell-number cell-bold">${cpa > 0 ? fmtMoney(cpa) : '-'}</td>
+        </tr>
+      `;
+    }).join('');
+
+  // Click row to select that account
+  tbody.querySelectorAll('.overview-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const accId = row.dataset.account;
+      document.getElementById('account-selector').value = accId;
+      renderDashboard(accId);
+    });
+  });
 }
 
 // --- KPI Cards ---
@@ -68,8 +132,8 @@ function renderDashboard(accountId) {
 function renderKPIs(accountMetrics) {
   const latest = getLatestData(accountMetrics);
   const previous = getPreviousData(accountMetrics);
+  const hasPrevious = previous.length > 0;
 
-  // Aggregate
   const current = aggregateMetrics(latest);
   const prev = aggregateMetrics(previous);
 
@@ -89,7 +153,11 @@ function renderKPIs(accountMetrics) {
     if (!el) return;
     el.querySelector('.kpi-value').textContent = kpi.value;
     const deltaEl = el.querySelector('.kpi-delta');
-    if (kpi.delta && kpi.delta.text !== '0%') {
+
+    if (!hasPrevious) {
+      // No previous data - hide deltas entirely
+      deltaEl.style.display = 'none';
+    } else if (kpi.delta && kpi.delta.text !== '0%') {
       deltaEl.textContent = kpi.delta.arrow + ' ' + kpi.delta.text;
       deltaEl.className = 'kpi-delta ' + (kpi.delta.positive ? 'positive' : 'negative');
       deltaEl.style.display = 'block';
@@ -158,14 +226,15 @@ function sortTable(column) {
     currentSort.asc = false;
   }
 
-  // Re-render with sort applied
   const accountId = document.getElementById('account-selector').value;
   const cm = filterByAccount(dashboardData.campaignMetrics, accountId);
   const latest = getLatestData(cm);
   const sorted = [...latest].sort((a, b) => {
-    const va = a[column] || 0;
-    const vb = b[column] || 0;
-    return currentSort.asc ? va - vb : vb - va;
+    const va = typeof a[column] === 'string' ? a[column].toLowerCase() : (a[column] || 0);
+    const vb = typeof b[column] === 'string' ? b[column].toLowerCase() : (b[column] || 0);
+    if (va < vb) return currentSort.asc ? -1 : 1;
+    if (va > vb) return currentSort.asc ? 1 : -1;
+    return 0;
   });
 
   const tbody = document.getElementById('campaign-tbody');
@@ -182,7 +251,6 @@ function sortTable(column) {
     </tr>
   `).join('');
 
-  // Update sort indicators
   document.querySelectorAll('th[data-sort]').forEach(th => {
     th.classList.remove('sort-asc', 'sort-desc');
     if (th.dataset.sort === column) {

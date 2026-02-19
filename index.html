@@ -40,6 +40,29 @@
       </select>
     </div>
 
+    <!-- Account Overview (visible when "all" selected) -->
+    <div id="account-overview" class="table-section" style="display: none;">
+      <div class="table-header">
+        <div class="section-title">Resumen por Cuenta</div>
+      </div>
+      <div class="table-scroll">
+        <table class="campaign-table">
+          <thead>
+            <tr>
+              <th>Cuenta</th>
+              <th>Inversion</th>
+              <th>Impresiones</th>
+              <th>Clicks</th>
+              <th>CTR</th>
+              <th>Conv.</th>
+              <th>CPA</th>
+            </tr>
+          </thead>
+          <tbody id="overview-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- KPI Cards -->
     <div class="kpi-grid">
       <div class="kpi-card" id="kpi-spend">
@@ -120,7 +143,7 @@
 
     <!-- Campaign Bar Chart -->
     <div class="chart-section">
-      <div class="section-title">Top 10 Campanas por Inversion</div>
+      <div class="section-title" id="bar-chart-title">Top 10 Campanas por Inversion</div>
       <div class="chart-wrapper">
         <canvas id="campaign-bar-chart"></canvas>
       </div>
