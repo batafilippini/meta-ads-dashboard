@@ -1,5 +1,5 @@
 // ============================================================
-// DATA LAYER - Google Sheets Public JSON Fetcher
+// DATA LAYER - Google Sheets via JSONP (gviz/tq endpoint)
 // ============================================================
 
 const CONFIG = {
@@ -13,35 +13,57 @@ const CONFIG = {
 };
 
 /**
- * Fetch data from a published Google Sheet via gviz/tq endpoint.
- * Requires the sheet to be published to the web (File > Share > Publish to web).
+ * Fetch data from a Google Sheet via gviz/tq JSONP endpoint.
+ * Uses script tag injection to bypass CORS restrictions.
  */
-async function fetchSheetData(sheetName) {
-  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch sheet "${sheetName}": ${response.status}`);
+function fetchSheetData(sheetName) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_gviz_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:${cbName}&sheet=${encodeURIComponent(sheetName)}`;
 
-  const text = await response.text();
-  // Strip JSONP wrapper: google.visualization.Query.setResponse({...});
-  const match = text.match(/google\.visualization\.Query\.setResponse\((.+)\);?\s*$/s);
-  if (!match) throw new Error(`Invalid response format from sheet "${sheetName}"`);
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timeout loading sheet "${sheetName}"`));
+    }, 15000);
 
-  const data = JSON.parse(match[1]);
-  if (data.status === 'error') {
-    throw new Error(`Sheet error: ${data.errors?.[0]?.detailed_message || 'Unknown'}`);
-  }
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
 
-  // Parse Google Visualization table format into plain objects
-  const headers = data.table.cols.map(col => col.label || col.id);
-  const colTypes = data.table.cols.map(col => col.type);
-  return data.table.rows.map(row => {
+    window[cbName] = function(data) {
+      cleanup();
+      if (data.status === 'error') {
+        reject(new Error(`Sheet error: ${data.errors?.[0]?.detailed_message || 'Unknown'}`));
+        return;
+      }
+      resolve(parseGvizTable(data.table));
+    };
+
+    script.src = url;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error(`Failed to load sheet "${sheetName}"`));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Parse gviz table format into array of plain objects.
+ */
+function parseGvizTable(table) {
+  const headers = table.cols.map(col => col.label || col.id);
+  return table.rows.map(row => {
     const obj = {};
     row.c.forEach((cell, i) => {
       if (!headers[i]) return;
       if (cell === null) {
         obj[headers[i]] = '';
       } else if (cell.v !== null && cell.v !== undefined) {
-        // Convert gviz Date(year,month,day) to YYYY-MM-DD string
+        // Convert gviz Date(year,month,day) to YYYY-MM-DD (month is 0-indexed)
         if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
           const m = cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
           if (m) {
@@ -62,7 +84,6 @@ async function fetchSheetData(sheetName) {
 
 /**
  * Load all dashboard data from Google Sheets.
- * Returns { accounts, accountMetrics, campaignMetrics, lastRun }
  */
 async function loadDashboardData() {
   const [accounts, accountMetrics, campaignMetrics, lastRun] = await Promise.all([
@@ -72,31 +93,9 @@ async function loadDashboardData() {
     fetchSheetData(CONFIG.SHEETS.lastRun)
   ]);
 
-  // Parse numeric fields
-  accountMetrics.forEach(row => {
-    row.spend = Number(row.spend) || 0;
-    row.impressions = Number(row.impressions) || 0;
-    row.reach = Number(row.reach) || 0;
-    row.clicks = Number(row.clicks) || 0;
-    row.ctr = Number(row.ctr) || 0;
-    row.cpc = Number(row.cpc) || 0;
-    row.cpm = Number(row.cpm) || 0;
-    row.frequency = Number(row.frequency) || 0;
-    row.conversions = Number(row.conversions) || 0;
-    row.cpa = Number(row.cpa) || 0;
-  });
-
-  campaignMetrics.forEach(row => {
-    row.spend = Number(row.spend) || 0;
-    row.impressions = Number(row.impressions) || 0;
-    row.clicks = Number(row.clicks) || 0;
-    row.ctr = Number(row.ctr) || 0;
-    row.cpc = Number(row.cpc) || 0;
-    row.cpm = Number(row.cpm) || 0;
-    row.frequency = Number(row.frequency) || 0;
-    row.conversions = Number(row.conversions) || 0;
-    row.cpa = Number(row.cpa) || 0;
-  });
+  const numFields = ['spend', 'impressions', 'reach', 'clicks', 'ctr', 'cpc', 'cpm', 'frequency', 'conversions', 'cpa'];
+  accountMetrics.forEach(row => numFields.forEach(f => { row[f] = Number(row[f]) || 0; }));
+  campaignMetrics.forEach(row => numFields.filter(f => f !== 'reach').forEach(f => { row[f] = Number(row[f]) || 0; }));
 
   return { accounts, accountMetrics, campaignMetrics, lastRun };
 }
