@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meta Ads Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+    <div class="loading-text">Cargando datos...</div>
+  </div>
+
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <h1>Meta Ads Dashboard</h1>
+        <div class="subtitle">Reportes automaticos cada 3 dias</div>
+      </div>
+      <div class="header-right">
+        <div class="last-update-badge">
+          Actualizado: <strong id="last-update">-</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-message" class="error-message"></div>
+
+    <!-- Account Selector -->
+    <div class="selector-bar">
+      <select id="account-selector">
+        <option value="all">Todas las cuentas</option>
+      </select>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card" id="kpi-spend">
+        <div class="kpi-label">Inversion</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+      <div class="kpi-card" id="kpi-impressions">
+        <div class="kpi-label">Impresiones</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+      <div class="kpi-card" id="kpi-clicks">
+        <div class="kpi-label">Clicks</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+      <div class="kpi-card" id="kpi-ctr">
+        <div class="kpi-label">CTR</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+      <div class="kpi-card" id="kpi-cpc">
+        <div class="kpi-label">CPC</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+      <div class="kpi-card" id="kpi-cpm">
+        <div class="kpi-label">CPM</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+      <div class="kpi-card" id="kpi-conversions">
+        <div class="kpi-label">Conversiones</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+      <div class="kpi-card" id="kpi-cpa">
+        <div class="kpi-label">CPA</div>
+        <div class="kpi-value">-</div>
+        <div class="kpi-delta"></div>
+      </div>
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="chart-section">
+      <div class="section-title">Tendencia Historica</div>
+      <div class="chart-wrapper">
+        <canvas id="trend-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Campaign Table -->
+    <div class="table-section">
+      <div class="table-header">
+        <div class="section-title">Campanas por Inversion</div>
+      </div>
+      <div class="table-scroll">
+        <table class="campaign-table">
+          <thead>
+            <tr>
+              <th data-sort="campaign_name" onclick="sortTable('campaign_name')">Campana</th>
+              <th data-sort="account_name" onclick="sortTable('account_name')">Cuenta</th>
+              <th data-sort="spend" onclick="sortTable('spend')" class="sort-desc">Inversion</th>
+              <th data-sort="impressions" onclick="sortTable('impressions')">Impresiones</th>
+              <th data-sort="clicks" onclick="sortTable('clicks')">Clicks</th>
+              <th data-sort="ctr" onclick="sortTable('ctr')">CTR</th>
+              <th data-sort="cpa" onclick="sortTable('cpa')">CPA</th>
+              <th data-sort="conversions" onclick="sortTable('conversions')">Conv.</th>
+            </tr>
+          </thead>
+          <tbody id="campaign-tbody">
+            <tr><td colspan="8" class="empty-cell">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Campaign Bar Chart -->
+    <div class="chart-section">
+      <div class="section-title">Top 10 Campanas por Inversion</div>
+      <div class="chart-wrapper">
+        <canvas id="campaign-bar-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>Meta Ads Dashboard &mdash; Actualizado automaticamente cada 3 dias</p>
+      <p>The Winlab Agency</p>
+    </div>
+
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
